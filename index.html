@@ -503,15 +503,26 @@ input[type=range]{accent-color:var(--acento)}
 .pausa-ops{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 .pausa-ops .btn{width:100%}
 .pausa-cuenta{font-size:13px;color:var(--tinta);margin-top:10px;font-weight:600}
-.pausa{position:fixed;inset:0;z-index:140;display:none;flex-direction:column;align-items:center;justify-content:center;gap:28px;padding:24px;text-align:center;
+.pausa{position:fixed;inset:0;z-index:140;display:none;flex-direction:column;align-items:center;justify-content:center;gap:22px;padding:24px;text-align:center;
   background:radial-gradient(circle at 50% 42%,rgba(34,211,238,.16),rgba(34,211,238,0) 60%),#040711;color:#f1f5f9}
 .pausa.ver{display:flex}
 .pausa-eti{font-size:11.5px;letter-spacing:.38em;text-transform:uppercase;color:#fde08d;font-weight:600}
-.orbe-resp{width:min(64vw,300px);aspect-ratio:1;border-radius:50%;transform:scale(.55);transition:transform 4s ease-in-out;
+.resp-caja{position:relative;width:min(74vw,340px);aspect-ratio:1;max-width:100%;display:flex;align-items:center;justify-content:center}
+.resp-anillo{position:absolute;inset:0;width:100%;height:100%;transform:rotate(-90deg)}
+.resp-anillo circle{fill:none;stroke-width:1.6}
+.ra-fondo{stroke:rgba(255,255,255,.08)}
+.ra-prog{stroke:#fde08d;stroke-linecap:round;filter:drop-shadow(0 0 4px rgba(253,224,141,.8))}
+.pausa[data-fase="0"] .ra-prog{stroke:#22d3ee;filter:drop-shadow(0 0 4px rgba(34,211,238,.8))}
+.pausa[data-fase="2"] .ra-prog{stroke:#c084fc;filter:drop-shadow(0 0 4px rgba(192,132,252,.8))}
+.resp-centro{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;pointer-events:none}
+.resp-centro .pausa-fase{text-transform:uppercase;letter-spacing:.14em;text-shadow:0 0 18px rgba(4,7,17,.9)}
+.resp-seg{font-family:'JetBrains Mono',monospace;font-size:clamp(30px,9vw,44px);font-weight:600;color:#fff;text-shadow:0 0 16px rgba(34,211,238,.8);min-height:1.1em;font-variant-numeric:tabular-nums}
+.resp-guia{max-width:440px;font-style:italic;font-weight:300;font-size:clamp(15px,4vw,18px);line-height:1.55;color:rgba(226,232,240,.9);min-height:3.1em;margin:0}
+.orbe-resp{width:86%;aspect-ratio:1;border-radius:50%;transform:scale(.55);transition:transform 4s ease-in-out;
   background:radial-gradient(circle at 42% 36%,rgba(253,224,141,.6),rgba(34,211,238,.28) 52%,rgba(168,85,247,.14) 72%,rgba(4,7,17,0) 74%);
   border:1px solid rgba(253,224,141,.45);box-shadow:0 0 80px rgba(34,211,238,.45),inset 0 0 50px rgba(253,224,141,.25)}
-.pausa-fase{font-family:'Cinzel',Georgia,serif;font-size:clamp(28px,8vw,40px);letter-spacing:.08em;min-height:1.2em}
-.pausa-tiempo{font-family:'JetBrains Mono',monospace;color:#22d3ee;letter-spacing:.24em;font-size:15px}
+.pausa-fase{font-family:'Cinzel',Georgia,serif;font-size:clamp(24px,7vw,34px);letter-spacing:.08em;min-height:1.2em;color:#fff}
+.pausa-tiempo{font-family:'JetBrains Mono',monospace;color:#22d3ee;letter-spacing:.06em;font-size:13.5px;white-space:nowrap}
 .pausa .btn.fantasma{color:#f1f5f9;border-color:rgba(255,255,255,.2)}
 
 /* Computador: barra lateral y dos columnas */
@@ -661,9 +672,13 @@ input[type=range]{accent-color:var(--acento)}
 
 <div class="pausa" id="pausa" role="dialog" aria-modal="true" aria-label="Pausa de presencia">
   <div class="pausa-eti">Pausa de presencia</div>
-  <div class="orbe-resp" id="orbeResp"></div>
-  <div class="pausa-fase" id="pausaFase" aria-live="polite">Llega aquí</div>
-  <div class="pausa-tiempo" id="pausaTiempo">0:00</div>
+  <div class="resp-caja">
+    <svg class="resp-anillo" viewBox="0 0 100 100" aria-hidden="true"><circle class="ra-fondo" cx="50" cy="50" r="47"/><circle class="ra-prog" id="respAnillo" cx="50" cy="50" r="47"/></svg>
+    <div class="orbe-resp" id="orbeResp"></div>
+    <div class="resp-centro"><div class="pausa-fase" id="pausaFase" aria-live="polite">Llega aquí</div><div class="resp-seg" id="respSeg"></div></div>
+  </div>
+  <p class="resp-guia" id="respGuia"></p>
+  <div class="pausa-tiempo"><span id="pausaTiempo">0:00</span> · <span id="respRitmoTxt"></span></div>
   <button class="btn fantasma chico" id="btnPausaFin">Terminar</button>
 </div>
 
@@ -754,7 +769,10 @@ input[type=range]{accent-color:var(--acento)}
     </div>
     <div class="tarjeta" id="tarjetaPausa">
       <h2>Pausa de presencia <span class="pill">respira</span></h2>
-      <p class="nota" style="margin-top:0;margin-bottom:12px">Respiración guiada: inhala 4, sostén 4, exhala 6. Con un tono suave en cada cambio.</p>
+      <p class="nota" style="margin-top:0;margin-bottom:12px">Respiración guiada: inhala, mantén y exhala, con la cuenta de segundos y un tono suave en cada cambio.</p>
+      <div class="seg" id="pausaRitmo" style="margin-bottom:12px">
+        <button data-r="444">4·4·4 equilibrio</button><button data-r="446">4·4·6 calma</button><button data-r="478">4·7·8 dormir</button>
+      </div>
       <div class="pausa-ops" id="pausaOps">
         <button class="btn fantasma" data-min="1">1 min</button>
         <button class="btn" data-min="3">3 min</button>
@@ -3093,47 +3111,72 @@ function renderSemana(){
 
 /* ================= Pausa de presencia (respiración guiada) ================= */
 var Pausa=(function(){
-  var activa=false,fin=0,t1=null,reloj=null,ctx=null,i=0,minutos=0;
-  var FASES=[['Inhala',4000,1,432],['Sostén',4000,1,0],['Exhala',6000,.55,324],['Descansa',2000,.55,0]];
-  function campana(f){
+  var RITMOS={
+    '444':{nombre:'4 · 4 · 4',fases:[4,4,4]},
+    '446':{nombre:'4 · 4 · 6',fases:[4,4,6]},
+    '478':{nombre:'4 · 7 · 8',fases:[4,7,8]}
+  };
+  var FASE=[
+    {pal:'Inhala',guia:'Inhala profundo… Reconoce el espacio antes del pensamiento.',esc:1,tono:639,vol:.07},
+    {pal:'Mantén',guia:'Permanece en el instante sin nombre ni historia…',esc:1,tono:741,vol:.04},
+    {pal:'Exhala',guia:'Suelta suavemente, sin convertirte en la emoción.',esc:.55,tono:528,vol:.07}
+  ];
+  var activa=false,fin=0,t1=null,reloj=null,ctx=null,i=0,minutos=0,faseFin=0,CIRC=2*Math.PI*47;
+  function ritmo(){var r=D&&D.config&&D.config.pausaRitmo;return RITMOS[r]?r:'444';}
+  function campana(f,vol){
     if(!f)return;
     try{
       var AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;
       if(!ctx)ctx=new AC();if(ctx.state==='suspended')ctx.resume();
       var t=ctx.currentTime;
-      [[f,.07],[f*2,.015]].forEach(function(v){
+      [[f,vol||.07],[f*2,(vol||.07)*.2]].forEach(function(v){
         var o=ctx.createOscillator(),g=ctx.createGain();o.type='sine';o.frequency.value=v[0];
         g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(v[1],t+.06);g.gain.exponentialRampToValueAtTime(.0001,t+2.6);
         o.connect(g);g.connect(ctx.destination);o.start(t);o.stop(t+2.7);
       });
     }catch(e){}
   }
-  function tick(){var s=Math.max(0,Math.ceil((fin-Date.now())/1000));$('pausaTiempo').textContent=Math.floor(s/60)+':'+String(s%60).padStart(2,'0');}
+  function anillo(ms){
+    var a=$('respAnillo');
+    a.style.transition='none';a.style.strokeDashoffset=String(CIRC);
+    void a.getBoundingClientRect();
+    a.style.transition='stroke-dashoffset '+(ms/1000)+'s linear';a.style.strokeDashoffset='0';
+  }
+  function tick(){
+    var s=Math.max(0,Math.ceil((fin-Date.now())/1000));
+    $('pausaTiempo').textContent='Quedan '+Math.floor(s/60)+':'+String(s%60).padStart(2,'0');
+    if(faseFin)$('respSeg').textContent=String(Math.max(1,Math.ceil((faseFin-Date.now())/1000)));
+  }
   function paso(){
     if(!activa)return;
     if(Date.now()>=fin){terminar(true);return;}
-    var f=FASES[i%FASES.length];i++;
-    $('pausaFase').textContent=f[0];
-    var o=$('orbeResp');o.style.transitionDuration=(f[1]/1000)+'s';o.style.transform='scale('+f[2]+')';
-    campana(f[3]);if(f[3])vibrar([18]);
-    t1=setTimeout(paso,f[1]);
+    var k=i%3,f=FASE[k],ms=RITMOS[ritmo()].fases[k]*1000;i++;
+    $('pausaFase').textContent=f.pal;$('respGuia').textContent=f.guia;
+    $('pausa').setAttribute('data-fase',String(k));
+    var o=$('orbeResp');o.style.transitionDuration=(ms/1000)+'s';o.style.transform='scale('+f.esc+')';
+    faseFin=Date.now()+ms;anillo(ms);tick();
+    campana(f.tono,f.vol);vibrar([18]);
+    t1=setTimeout(paso,ms);
   }
   function empezar(min){
-    activa=true;i=0;minutos=min;fin=Date.now()+min*60000;
+    activa=true;i=0;minutos=min;fin=Date.now()+min*60000;faseFin=0;
     if(Ambiente&&Ambiente.activo())Ambiente.atenuar(true);
     var o=$('orbeResp');o.style.transitionDuration='0s';o.style.transform='scale(.55)';
-    $('pausaFase').textContent='Llega aquí';
+    $('pausaFase').textContent='Llega aquí';$('respSeg').textContent='';$('respGuia').textContent='Acomódate. Suelta los hombros. Empezamos en un momento.';
+    $('respRitmoTxt').textContent='Ritmo '+RITMOS[ritmo()].nombre;
+    var a=$('respAnillo');a.style.transition='none';a.style.strokeDashoffset=String(CIRC);
+    $('pausa').removeAttribute('data-fase');
     $('pausa').classList.add('ver');document.body.style.overflow='hidden';
-    campana(528);tick();reloj=setInterval(tick,500);t1=setTimeout(paso,1800);
+    campana(432,.06);tick();reloj=setInterval(tick,250);t1=setTimeout(paso,2500);
     setTimeout(function(){try{$('btnPausaFin').focus({preventScroll:true});}catch(e){}},60);
   }
   function terminar(completo){
     if(!activa)return;
-    activa=false;clearTimeout(t1);clearInterval(reloj);
+    activa=false;clearTimeout(t1);clearInterval(reloj);faseFin=0;
     $('pausa').classList.remove('ver');document.body.style.overflow='';
     if(Ambiente&&Ambiente.activo())Ambiente.atenuar(false);
     if(completo){
-      campana(528);
+      campana(528,.07);
       var d=dia(hoyISO());d.pausas=(Number(d.pausas)||0)+1;persistir();pintarCuenta();
       toast('Pausa de '+minutos+' min completada.');
     }
@@ -3141,8 +3184,11 @@ var Pausa=(function(){
   function pintarCuenta(){
     if(!D)return;var n=Number(dia(hoyISO()).pausas)||0;
     $('pausaCuenta').textContent=n?('Hoy: '+n+(n===1?' pausa':' pausas')+' ✦'):'';
+    var r=ritmo();document.querySelectorAll('#pausaRitmo button').forEach(function(b){b.classList.toggle('sel',b.dataset.r===r);});
   }
+  $('respAnillo').style.strokeDasharray=String(CIRC);
   $('pausaOps').addEventListener('click',function(e){var b=e.target.closest('button');if(b)empezar(Number(b.dataset.min));});
+  $('pausaRitmo').addEventListener('click',function(e){var b=e.target.closest('button');if(!b)return;D.config.pausaRitmo=b.dataset.r;persistir();pintarCuenta();});
   $('btnPausaFin').addEventListener('click',function(){terminar(false);});
   document.addEventListener('keydown',function(e){if(e.key==='Escape'&&activa)terminar(false);});
   return {pintarCuenta:pintarCuenta};
