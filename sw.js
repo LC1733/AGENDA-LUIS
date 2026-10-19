@@ -1,4 +1,4 @@
-const CACHE = "luis-agenda-v4";
+const CACHE = "luis-agenda-v2";
 const APP = ["./", "./index.html", "./manifest.webmanifest", "./icon.svg"];
 
 self.addEventListener("install", (event) => {
