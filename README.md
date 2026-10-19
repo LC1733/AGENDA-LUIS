@@ -1,6 +1,6 @@
-# Agenda Luis 5.0
+# Agenda Luis 5.1
 
-Agenda personal con la estética de *Protocolo de Presencia*: rutinas semanales, eventos, medicamentos, recordatorios con sonido, dictado por voz, música de fondo, pausas de respiración guiada y sincronización entre teléfono y computador.
+Agenda personal con la estética de *Protocolo de Presencia*: rutinas semanales, eventos, medicamentos, recordatorios con sonido, dictado por voz, música de fondo, pausas de respiración guiada, captura (notas de voz con transcripción, lector de documentos, traductor en Chrome del PC y notas) y sincronización entre teléfono y computador.
 
 ## Abrir la aplicación
 
