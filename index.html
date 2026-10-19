@@ -548,6 +548,22 @@ input[type=range]{accent-color:var(--acento)}
 /* ---------- Captura ---------- */
 [hidden]{display:none!important}
 .btn:disabled{opacity:.38;cursor:default;box-shadow:none}
+.ia-res{margin-top:14px;border:1px solid rgba(192,132,252,.45);border-radius:20px;padding:14px;background:linear-gradient(135deg,rgba(168,85,247,.10),rgba(34,211,238,.06));display:flex;flex-direction:column;gap:12px}
+.ia-estado{font-size:14px;font-weight:600;color:var(--extra)}
+.ia-estado.error{color:var(--alerta);font-weight:500}
+.ia-bloque{display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+.ia-eti{font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--extra)}
+.ia-intencion{font-family:'Cinzel',Georgia,serif;font-size:17px;line-height:1.45;color:var(--texto)}
+.ia-texto,.ia-dudas{font-size:15px;line-height:1.55;color:var(--texto-suave);white-space:pre-wrap;word-break:break-word}
+.ia-lista{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px;font-size:15px}
+.ia-tareas{display:flex;flex-direction:column;gap:8px;width:100%}
+.ia-tarea{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 10px;border-radius:14px;background:var(--hondo);border:1px solid var(--linea)}
+.ia-tarea-txt{flex:1;min-width:160px;font-size:15px}
+.ia-tarea-f{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--tinta)}
+.ia-tarea .btn{min-height:38px;padding:7px 12px;font-size:13px}
+.ia-dic{margin:12px 0 4px}
+.ia-dic summary{cursor:pointer;font-weight:600;font-size:14px;padding:6px 0}
+.ia-dic textarea{margin-top:6px}
 .grab-fila{display:flex;align-items:center;gap:16px}
 .grab-btn{flex:none;width:84px;height:84px;border-radius:50%;cursor:pointer;color:#fff;font-size:30px;line-height:1;
   border:1px solid var(--acento-borde);background:var(--orbe-mic);box-shadow:0 0 30px rgba(34,211,238,.3),inset 0 0 18px rgba(253,224,141,.15);
@@ -1016,10 +1032,12 @@ input[type=range]{accent-color:var(--acento)}
         <div class="trans-cab"><strong id="transTitulo">Transcripción</strong><span class="trans-prog" id="transProg"></span></div>
         <textarea id="transTexto" data-mic="1" rows="6" aria-label="Texto transcrito"></textarea>
         <div class="btn-fila">
-          <button class="btn chico" id="transNota">Guardar en Notas</button>
+          <button class="btn chico" id="transIA" hidden>✨ Entender</button>
+          <button class="btn fantasma chico" id="transNota">Guardar en Notas</button>
           <button class="btn fantasma chico" id="transCopiar">Copiar</button>
           <button class="btn fantasma chico" id="transCerrar">Cerrar</button>
         </div>
+        <div class="ia-res" id="iaRes" hidden></div>
       </div>
       <div class="cfg-fila" style="margin-top:14px">
         <label for="transModelo">Transcripción</label>
@@ -1032,6 +1050,11 @@ input[type=range]{accent-color:var(--acento)}
           <option value="english">Inglés</option>
         </select>
       </div>
+      <details class="ia-dic" id="iaDicCaja" hidden>
+        <summary>✨ Diccionario de la IA <span class="nota">palabras tuyas que debe reconocer</span></summary>
+        <textarea id="iaDic" data-mic="1" rows="3" aria-label="Términos frecuentes separados por comas"></textarea>
+        <button class="btn fantasma chico" id="iaDicGuardar" style="margin-top:8px">Guardar diccionario</button>
+      </details>
       <p class="nota" style="margin-top:0">La transcripción se hace dentro del equipo con Whisper: el audio no sale de aquí. La primera vez descarga el modelo. Para audios de más de 20 minutos conviene usar el computador.</p>
     </div>
 
@@ -3146,7 +3169,7 @@ function cargarScript(src){
 }
 
 /* ================= Notas ================= */
-var ICONO_NOTA={texto:'✎',voz:'🎙',doc:'📄',trad:'🌐'};
+var ICONO_NOTA={texto:'✎',voz:'🎙',doc:'📄',trad:'🌐',ia:'✨'};
 function listaNotas(){if(!Array.isArray(D.notas))D.notas=[];return D.notas;}
 function agregarNota(tipo,titulo,texto){
   texto=String(texto||'').trim();if(!texto){toast('No hay texto para guardar');return;}
@@ -3156,8 +3179,9 @@ function agregarNota(tipo,titulo,texto){
   toast(corto?'Guardado en Notas (solo los primeros 60.000 caracteres)':'Guardado en Notas');
   try{if(JSON.stringify(D).length>3500000)mostrarBanner('Las notas ocupan mucho espacio','Borra notas largas que ya no necesites: el navegador guarda unos 5 MB en total.');}catch(e){}
 }
+var congelarNotas=false;
 function renderNotas(){
-  var cont=$('notasLista');if(!cont||!D)return;
+  var cont=$('notasLista');if(!cont||!D||congelarNotas)return;
   var q=($('notaBuscar').value||'').trim().toLowerCase(),todas=listaNotas();
   $('notasCuenta').textContent=String(todas.length);
   var lista=q?todas.filter(function(n){return (n.titulo+' '+n.texto).toLowerCase().indexOf(q)>=0;}):todas;
@@ -3170,13 +3194,14 @@ function renderNotas(){
     s.appendChild(elem('span','nota-fecha',fechaCorta(n.fecha)));
     d.appendChild(s);
     d.appendChild(elem('div','nota-cuerpo',n.texto));
-    var acc=elem('div','grab-acc');
+    var acc=elem('div','grab-acc'),res=elem('div','ia-res');res.hidden=true;
+    if(IA.disponible&&n.tipo!=='ia')acc.appendChild(boton('✨ Entender','',function(){IA.ejecutar(n.texto,res,'✨ '+(n.titulo||'Nota'));}));
     acc.appendChild(boton('Copiar','fantasma',function(){copiarTexto(n.texto);}));
     if(Trad.disponible)acc.appendChild(boton('Traducir','fantasma',function(){Trad.cargar(n.texto);}));
     acc.appendChild(boton('Descargar .txt','fantasma',function(){descargar((n.titulo||'nota').replace(/[\\/:*?"<>|]+/g,'').slice(0,60)+'.txt',n.texto,'text/plain;charset=utf-8');}));
     var del=boton('Borrar','fantasma peligro',function(){});
     dosToques(del,'¿Borrar? Toca otra vez',function(){D.notas=listaNotas().filter(function(x){return x.id!==n.id;});persistir();renderNotas();toast('Nota borrada');});
-    acc.appendChild(del);d.appendChild(acc);cont.appendChild(d);
+    acc.appendChild(del);d.appendChild(acc);d.appendChild(res);cont.appendChild(d);
   });
 }
 $('notaGuardar').addEventListener('click',function(){var t=$('notaTexto').value;if(!t.trim()){$('notaTexto').focus();return;}agregarNota('texto','',t);$('notaTexto').value='';});
@@ -3605,6 +3630,131 @@ var Trad=(function(){
   function cargar(texto){irA('captura');$('trEntrada').value=String(texto||'').slice(0,20000);$('trSalida').value='';
     $('tarjetaTrad').scrollIntoView({behavior:'smooth',block:'start'});traducir();}
   return {disponible:disponible,cargar:cargar};
+})();
+
+/* ================= ✨ Entender: IA de Chrome (Gemini Nano) dentro del computador ================= */
+var IA=(function(){
+  var ESCRITORIO=!/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+  var disponible=('LanguageModel' in self)&&ESCRITORIO;
+  var OPC={expectedInputs:[{type:'text',languages:['es','en']}],expectedOutputs:[{type:'text',languages:['es']}]};
+  var DIC_BASE='Martiline, Martiline SpA, Martiline SAC, Translog, Cargoes, BL, HBL, MBL, booking, contenedor, flete, agente, consignatario, embarcador, IMO, carga peligrosa, Callao, San Antonio, Valparaíso, Iquique, DSI, Weir, Vulco, Gelymar, ISO, SGC, AVSEC, Incoterms, FOB, CIF, EXW, DAP';
+  var base=null,baseDic=null;
+  var ESQUEMA={type:'object',properties:{
+    texto_corregido:{type:'string'},intencion:{type:'string'},
+    ideas:{type:'array',items:{type:'string'}},
+    tareas:{type:'array',items:{type:'object',properties:{que:{type:'string'},fecha:{type:'string'},hora:{type:'string'}},required:['que','fecha','hora']}},
+    dudas:{type:'array',items:{type:'string'}}},
+    required:['texto_corregido','intencion','ideas','tareas','dudas']};
+  function diccionario(){return (D&&D.config&&typeof D.config.iaDic==='string')?D.config.iaDic:DIC_BASE;}
+  function sistema(){
+    return 'Eres el asistente de Luis, gerente de Martiline, una empresa chilena de freight forwarding (comercio exterior, corredor Chile-Perú, carga de minería e industrial). '+
+      'Recibes textos dictados que un reconocedor de voz automático transcribió con errores: palabras mal oídas, sin puntuación, frases cortadas. '+
+      'Tu trabajo es reconstruir lo que Luis quiso decir, en español de Chile, sin inventar información.\n'+
+      'Reglas:\n- texto_corregido: el mismo contenido con puntuación y palabras corregidas. Si una palabra no se puede deducir con seguridad, escribe [?] en su lugar.\n'+
+      '- intencion: una o dos frases con la idea principal.\n- ideas: los puntos clave, cortos.\n'+
+      '- tareas: solo acciones concretas que se mencionan. fecha en formato AAAA-MM-DD si se menciona o se deduce (resuelve "mañana", "el lunes", etc. con la fecha de hoy); si no, cadena vacía. hora en formato HH:MM o cadena vacía.\n'+
+      '- dudas: las palabras o frases que no pudiste entender, tal como aparecen.\n'+
+      '- Nunca agregues nombres, cifras o fechas que no estén en el texto.\n'+
+      'Términos frecuentes de Luis (úsalos para corregir palabras mal oídas): '+diccionario()+'.';
+  }
+  async function estado(){if(!disponible)return 'unavailable';try{return await LanguageModel.availability(OPC);}catch(e){return 'unavailable';}}
+  async function sesion(alProgreso){
+    var d=diccionario();
+    if(base&&baseDic===d)return base;
+    if(base){try{base.destroy();}catch(e){}base=null;}
+    base=await LanguageModel.create(Object.assign({},OPC,{initialPrompts:[{role:'system',content:sistema()}],
+      monitor:function(m){m.addEventListener('downloadprogress',function(e){if(alProgreso)alProgreso(e.loaded||0);});}}));
+    baseDic=d;return base;
+  }
+  function trozos(t,max){
+    var frases=t.replace(/\s+/g,' ').split(/(?<=[.!?…])\s+/),out=[],cur='';
+    frases.forEach(function(f){
+      while(f.length>max){out.push((cur+' '+f.slice(0,max)).trim());cur='';f=f.slice(max);}
+      if((cur+' '+f).length>max){out.push(cur.trim());cur=f;}else cur=(cur+' '+f).trim();
+    });
+    if(cur)out.push(cur);return out.filter(Boolean);
+  }
+  function hoyTexto(){var d=new Date();return ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'][d.getDay()]+' '+hoyISO();}
+  async function entender(texto,avisar){
+    var est=await estado();
+    if(est==='unavailable')throw new Error('La IA de Chrome no está disponible en este equipo. Requisitos: Chrome 148 o más nuevo en el computador, 22 GB libres en el disco y 16 GB de RAM (o tarjeta de video con más de 4 GB).');
+    if(est!=='available')avisar('Descargando la IA de Chrome (solo la primera vez; puede tardar varios minutos)…');
+    var b=await sesion(function(p){avisar('Descargando la IA de Chrome '+Math.round(p*100)+'% (solo la primera vez)');});
+    var partes=trozos(String(texto||'').replace(/\n\n⚠[\s\S]*$/,''),3000),res={texto_corregido:'',intencion:'',ideas:[],tareas:[],dudas:[]};
+    for(var i=0;i<partes.length;i++){
+      avisar(partes.length>1?'Entendiendo parte '+(i+1)+' de '+partes.length+'…':'Entendiendo…');
+      var s=await b.clone(),r;
+      try{r=JSON.parse(await s.prompt('Fecha de hoy: '+hoyTexto()+'.\nTexto dictado:\n"""'+partes[i]+'"""',{responseConstraint:ESQUEMA}));}
+      finally{try{s.destroy();}catch(e){}}
+      res.texto_corregido=(res.texto_corregido+' '+(r.texto_corregido||'')).trim();
+      res.intencion=(res.intencion+' '+(r.intencion||'')).trim();
+      ['ideas','tareas','dudas'].forEach(function(k){if(Array.isArray(r[k]))res[k]=res[k].concat(r[k]);});
+    }
+    res.tareas=res.tareas.filter(function(t){return t&&t.que;}).map(function(t){
+      return {que:String(t.que),fecha:/^\d{4}-\d{2}-\d{2}$/.test(t.fecha||'')?t.fecha:'',hora:/^\d{2}:\d{2}$/.test(t.hora||'')?t.hora:''};});
+    return res;
+  }
+  function comoTexto(r){
+    var o=['LO QUE QUISISTE DECIR',r.intencion,'','TEXTO CORREGIDO',r.texto_corregido];
+    if(r.ideas.length)o.push('','IDEAS CLAVE',r.ideas.map(function(x){return '• '+x;}).join('\n'));
+    if(r.tareas.length)o.push('','TAREAS',r.tareas.map(function(t){return '☐ '+t.que+(t.fecha?' — '+fmtFecha(t.fecha)+(t.hora?' '+t.hora:''):'');}).join('\n'));
+    if(r.dudas.length)o.push('','DUDAS',r.dudas.join(' · '));
+    return o.join('\n');
+  }
+  function aAgenda(t,btn){
+    if(!t.fecha){
+      irA('plan');$('eTexto').value=t.que;$('eFecha').value=hoyISO();$('eHora').value=t.hora||'';
+      try{$('eFecha').focus();$('eFecha').scrollIntoView({behavior:'smooth',block:'center'});}catch(e){}
+      toast('Elige la fecha y toca Agregar');return;
+    }
+    D.eventos.push({id:idNuevo(),fecha:t.fecha,hora:t.hora||'',texto:t.que});
+    sincronizarPlanHoy();persistir();congelarNotas=true;try{renderTodo();}finally{congelarNotas=false;}toast('Agregado a la agenda: '+fmtFecha(t.fecha));
+    btn.disabled=true;btn.textContent='✓ En la agenda';
+  }
+  // Muestra el resultado en un contenedor; alUsar recibe el texto corregido
+  function pintar(cont,r,titulo,alUsar){
+    cont.innerHTML='';cont.hidden=false;
+    function bloque(et,cuerpo){var b=elem('div','ia-bloque');b.appendChild(elem('div','ia-eti',et));if(cuerpo)b.appendChild(cuerpo);cont.appendChild(b);return b;}
+    bloque('Lo que quisiste decir',elem('div','ia-intencion',r.intencion||'—'));
+    var tc=bloque('Texto corregido',elem('div','ia-texto',r.texto_corregido||'—'));
+    if(alUsar)tc.appendChild(boton('Usar este texto','fantasma',function(){alUsar(r.texto_corregido);toast('Texto reemplazado');}));
+    if(r.ideas.length){var ul=elem('ul','ia-lista');r.ideas.forEach(function(x){ul.appendChild(elem('li','',x));});bloque('Ideas clave',ul);}
+    if(r.tareas.length){
+      var tl=elem('div','ia-tareas');
+      r.tareas.forEach(function(t){
+        var f=elem('div','ia-tarea');f.appendChild(elem('span','ia-tarea-txt',t.que));
+        f.appendChild(elem('span','ia-tarea-f',t.fecha?fmtFecha(t.fecha)+(t.hora?' · '+t.hora:''):'sin fecha'));
+        var b=boton('➕ Agenda','fantasma',function(){aAgenda(t,b);});f.appendChild(b);tl.appendChild(f);
+      });
+      bloque('Tareas',tl);
+    }
+    if(r.dudas.length)bloque('Dudas (revisa estas palabras)',elem('div','ia-dudas',r.dudas.join(' · ')));
+    var acc=elem('div','btn-fila');
+    acc.appendChild(boton('Guardar en Notas','',function(){agregarNota('ia',titulo||('✨ '+(r.intencion||'Nota').slice(0,80)),comoTexto(r));}));
+    acc.appendChild(boton('Copiar','fantasma',function(){copiarTexto(comoTexto(r));}));
+    acc.appendChild(boton('Cerrar','fantasma',function(){cont.hidden=true;cont.innerHTML='';}));
+    cont.appendChild(acc);
+    cont.scrollIntoView({behavior:'smooth',block:'nearest'});
+  }
+  async function ejecutar(texto,cont,titulo,alUsar){
+    texto=String(texto||'').trim();
+    if(!texto){toast('No hay texto para entender');return;}
+    cont.hidden=false;cont.innerHTML='';
+    var st=elem('div','ia-estado','Preparando…');cont.appendChild(st);
+    try{var r=await entender(texto,function(t){st.textContent=t;});pintar(cont,r,titulo,alUsar);}
+    catch(e){st.textContent='⚠ '+((e&&e.message)||'No se pudo procesar.');st.classList.add('error');}
+  }
+  // Diccionario editable
+  if(disponible){
+    $('iaDicCaja').hidden=false;
+    $('iaDic').value=diccionario();
+    $('iaDicGuardar').addEventListener('click',function(){D.config.iaDic=$('iaDic').value.trim()||DIC_BASE;persistir();toast('Diccionario guardado');});
+    $('transIA').hidden=false;
+    $('transIA').addEventListener('click',function(){
+      ejecutar($('transTexto').value,$('iaRes'),null,function(t){$('transTexto').value=t;});
+    });
+  }
+  return {disponible:disponible,ejecutar:ejecutar};
 })();
 
 (function(){var rt=renderTodo;renderTodo=function(){rt.apply(this,arguments);renderNotas();};})();
